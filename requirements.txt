@@ -1,0 +1,4 @@
+folium==0.14.0
+PyQt5==5.15.9
+pyqtgraph==0.13.1
+QSwitchControl==1.0.4
