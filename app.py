@@ -14,7 +14,7 @@ from widget import states
 from widget import namewidget
 
 class MainWindow(QtWidgets.QMainWindow):
-    global size 
+    global size
     size = 50
     i = 0
     counter=0
@@ -27,7 +27,7 @@ class MainWindow(QtWidgets.QMainWindow):
              self.dot1.setText("🟢")
         else:
              self.dot1.setText("🔴")
-    
+
     def descent(self):
         global is_descent
         is_descent=1
@@ -35,7 +35,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.dot2.setText("🟢")
         else:
                 self.dot2.setText("🔴")
-    
+
     def heat_shield_deployed(self):
         global is_heat_shield_deployed
         is_heat_shield_deployed=1
@@ -43,7 +43,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.dot4.setText("🟢")
         else:
                 self.dot4.setText("🔴")
-    
+
     def probe_deployed(self):
         global is_probe_deployed
         is_probe_deployed=1
@@ -51,7 +51,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.dot5.setText("🟢")
         else:
                 self.dot5.setText("🔴")
-    
+
     def parachute_deployed(self):
         global is_parachute_deployed
         is_parachute_deployed=0
@@ -59,7 +59,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.dot6.setText("🟢")
         else:
                 self.dot6.setText("🔴")
-    
+
     def landed(self):
         global is_landed
         is_landed=0
@@ -67,7 +67,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.dot7.setText("🟢")
         else:
                 self.dot7.setText("🔴")
-    
+
     def mast_raised(self):
         global is_mast_raised
         is_mast_raised=0
@@ -75,7 +75,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.dot3.setText("🟢")
         else:
                 self.dot3.setText("🔴")
-    
+
     def rocket_separated(self):
         global is_rocket_separated
         is_rocket_separated=1
@@ -95,7 +95,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def nogps(self):
           count = 6
           self.no_of_gps.setText("No. of GPS: "+str(count))
-    
+
     def lati(self):
           self.latitude.setText("Latitude: "+ "{:.4f}".format(self.lon))
 
@@ -109,16 +109,16 @@ class MainWindow(QtWidgets.QMainWindow):
         allstate = ["Ascent","Rocket Separation","Probe Deployed","Heat Shield Deployed","Parachute Deployed","Descent","Landed", "Mast Raised"]
         i = currstate.index(0)
         curstate = allstate[i-1]
-        
+
         self.state.setText("Current State:"+ str(curstate))
-        
+
     def mode(self):
         if curstate=="Idle" or curstate=="Mast Raised":
               state = "Idle"
         else:
               state = "Flight"
         self.mode_name.setText("Mode: " +str(state) )
-    
+
     def mission_time(self):
         m = self.time//60
         s = self.time%60
@@ -126,9 +126,9 @@ class MainWindow(QtWidgets.QMainWindow):
         m = m%60
         tim = "{:02d}:{:02d}:{:02d}".format(h,m,s)
         self.time+=1
-          
+
         self.MENU2_mission_time.setText("Mission Time:"+str(tim))
-        
+
     def telemetry_button(self):
         print("hi1")
 
@@ -175,7 +175,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.lat += self.i
         self.lon += self.x
         self.map.update(self.lat, self.lon)
-        
+
     def log_output(self,text):
         self.logOutput.moveCursor(QTextCursor.End)
         self.logOutput.insertPlainText(text)
@@ -228,7 +228,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 button_widget.setLayout(button_layout)
                 button_widget.setFixedHeight(60)
                 return button_widget
-        
+
         def dotAndState(state,height,fontsize):
                 state_label=QLabel(state)
                 layout=QGridLayout()
@@ -280,7 +280,7 @@ class MainWindow(QtWidgets.QMainWindow):
                      self.dot8.setStyleSheet("QLabel{color: rgb(255,0,13); ; font: %spt  'Oswald'; background-color: rgb(30,30,30);}" % fontsize)
                      layout.addWidget(self.dot8,1,1,1,1)
                      self.timer.timeout.connect(self.rocket_separated)
-                
+
                 state_label.setStyleSheet("QLabel{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % fontsize)
 
                 layout.addWidget(state_label,1,2,1,5)
@@ -288,9 +288,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 layout_widget.setLayout(layout)
                 layout_widget.setFixedHeight(height)
                 return layout_widget
-        
-        
-        
+
+
+
 ##------logowidget start---------------------------------------------------------------
         self.logo = QLabel()
         logo_image = QPixmap('./Janus Logo.png')
@@ -805,7 +805,7 @@ class MainWindow(QtWidgets.QMainWindow):
         #self.setFixedSize(self.all_widget.sizeHint())
         self.setCentralWidget(self.all_widget)
 #-------main window ends--------------------------------------------------------------------------------------------------
-        
+
         self.timer.timeout.connect(self.update)
         self.timer.timeout.connect(self.current_state)
         self.timer.timeout.connect(self.mode)
