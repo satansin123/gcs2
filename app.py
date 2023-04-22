@@ -30,7 +30,7 @@ class MainWindow(QtWidgets.QMainWindow):
         check_sim = 0
         curstate = "Idle"
         global my_packet
-       
+        ser = serial.Serial('COM5', 9600)
         #------------------------------------------------------------       
         file = open("cansat_2023_simp.txt","r")
         simp1 = file.readlines()
@@ -73,7 +73,7 @@ class MainWindow(QtWidgets.QMainWindow):
         def update(self):
                 
                 self.my_packet = open("packet.txt","a+")
-                self.ser = serial.Serial('COM5', 9600) 
+                #self.ser = serial.Serial('COM5', 9600) 
                 self.packet = self.ser.readline().decode().strip()
                 self.pack = self.packet+"\n"
                 self.my_packet.write(self.pack)
