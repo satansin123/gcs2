@@ -15,6 +15,7 @@ import data
 import serial
 import time
 from datetime import datetime,timezone
+import threading
 #from new import MyButton
 from buttonwidget import MyButton
 class MainWindow(QtWidgets.QMainWindow):
@@ -29,12 +30,7 @@ class MainWindow(QtWidgets.QMainWindow):
         check_sim = 0
         curstate = "Idle"
         global my_packet
-        try:
-                my_packet = open("packet.txt","a+")
-                ser = serial.Serial('COM4', 9600) # replace with appropriate serial port
-                time.sleep(2)
-        except:
-                pass
+       
         #------------------------------------------------------------       
         file = open("cansat_2023_simp.txt","r")
         simp1 = file.readlines()
@@ -76,11 +72,21 @@ class MainWindow(QtWidgets.QMainWindow):
         
         def update(self):
                 
-                self.packet = ser.readline().decode().strip()
-                self.pack = self.packet+" \n"
-                my_packet.write(self.pack)
+                self.my_packet = open("packet.txt","a+")
+                self.ser = serial.Serial('COM5', 9600) 
+                self.packet = self.ser.readline().decode().strip()
+                self.pack = self.packet+"\n"
+                self.my_packet.write(self.pack)
+                self.my_packet.close()
                 self.lis = list(self.packet.split(","))
-                
+                print(self.lis)
+                self.ser.close()
+                try:
+                        ser = serial.Serial('COM5', 9600)
+                        ser.write(cx.encode())
+                        ser.close()
+                except:
+                        pass
                 try:
                         self.teamIdValue = int(self.lis[0])
                 except:
@@ -171,26 +177,68 @@ class MainWindow(QtWidgets.QMainWindow):
                                 self.corruptedPacketsValue+=0
                 
                 self.i += 1
-                self.graphPressure1.update(self.i,[ self.pressureValue])
-                self.graphTemperature1.update(self.i,[ self.temperatureValue])
-                self.graphAltitude1.update(self.i,[ self.altitudeValue])
-                self.graphVoltage1.update(self.i,[ self.voltageValue])
-                self.graphGPS_Altitude1.update(self.i,[ self.gpsAltitudeValue])
-                self.graphTilt_XY1.update(self.i,[ abs(self.tiltXValue),abs(self.tiltYValue)])
-                self.lat = self.gpsLatitudeValue
-                self.lon = self.gpsLongitudeValue
+                try:
+                        self.graphPressure1.update(self.i,[ self.pressureValue])
+                except:
+                        pass
+                try:
+                        self.graphTemperature1.update(self.i,[ self.temperatureValue])
+                except:
+                        pass
+                try:
+                        self.graphAltitude1.update(self.i,[ self.altitudeValue])
+                except:
+                        pass
+                try:
+                        self.graphVoltage1.update(self.i,[ self.voltageValue])
+                except:
+                        pass
+                try:
+                        self.graphGPS_Altitude1.update(self.i,[ self.gpsAltitudeValue])
+                except:
+                        pass
+                try:    
+                        self.graphTilt_XY1.update(self.i,[ self.tiltXValue,self.tiltYValue])
+                except:
+                        pass
+                try:
+                        self.lat = self.gpsLatitudeValue
                 #if self.i%2 == 0:
+                except:
+                        self.lat = 0
+                try:
+                      self.lon = self.gpsLongitudeValue
+                except:
+                        self.lon = 0
                 self.map.update(self.lat, self.lon)
-                
+                #printing the simp from text or csv file
+                """
                 if  (self.i<= len(simp) - 1):
-                        print(simp[int(self.i)])
-
-                self.team_label.setText("Team ID:" + str(self.teamIdValue))
-                self.packet_count.setText("Packet Count: " + str(self.packetCountValue))
-                self.no_of_gps.setText("No. of GPS: " + str(self.noOfGpsValue))
-                self.latitude.setText("Latitude: "+ "{:.4f}".format(self.lat))
-                self.longitude.setText("Longitude: " + "{:.4f}".format(self.lon) )
-                self.corrupted_packets.setText("Corrupted Packets: "+str(self.corruptedPacketsValue))
+                        print(simp[int(self.i)])"""
+                try:
+                        self.team_label.setText("Team ID:" + str(self.teamIdValue))
+                except:
+                        pass
+                try:
+                        self.packet_count.setText("Packet Count: " + str(self.packetCountValue))
+                except:
+                        pass
+                try:
+                        self.no_of_gps.setText("No. of GPS: " + str(self.noOfGpsValue))
+                except:
+                        pass
+                try:
+                        self.latitude.setText("Latitude: "+ "{:.4f}".format(self.lat))
+                except:
+                        pass
+                try:
+                        self.longitude.setText("Longitude: " + "{:.4f}".format(self.lon) )
+                except:
+                        pass
+                try:
+                        self.corrupted_packets.setText("Corrupted Packets: "+str(self.corruptedPacketsValue))
+                except:
+                        pass
                 is_ascent, is_descent, is_heat_shield_deployed, is_landed, is_mast_raised, is_parachute_deployed,is_probe_deployed, is_rocket_separated = 0,0,0,0,0,0,0,0
 
                 
@@ -316,18 +364,21 @@ class MainWindow(QtWidgets.QMainWindow):
                 text = self.tele_cmd_textbox.text()
                 # do some thing withit
                 self.cmdoutput(text+"\n")
-        
+                ser = serial.Serial('COM5', 9600)
+                ser.write(text.encode())
+                ser.close()
         def onGettingData(self):
+                #input from cansat
                 text = "hi"
                 # do some thing withit
                 self.log_output(text+"\n")
         
-        def log_output(self,text="hi"):
+        def log_output(self,text):
                 self.logOutput.moveCursor(QTextCursor.End)
                 self.logOutput.insertPlainText(text)
                 sb = self.logOutput.verticalScrollBar()
                 sb.setValue(sb.maximum())
-        def cmdoutput(self,text="hi"):
+        def cmdoutput(self,text):
                 self.cmdOutput.moveCursor(QTextCursor.End)
                 self.cmdOutput.insertPlainText(text)
                 sb = self.cmdOutput.verticalScrollBar()
@@ -358,10 +409,11 @@ class MainWindow(QtWidgets.QMainWindow):
                         button_layout=QHBoxLayout()
                         if name=="Telemetry":
                                 self.button_name1= QtWidgets.QPushButton()
-                                self.button_name1.setCheckable(True)
+                                #self.button_name1.setCheckable(True)
                                 self.button_name1.setText(name)
                                 self.button_name1.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % fontsize)
                                 button_layout.addWidget(self.button_name1)
+                                self.y = True
                                 self.button_name1.clicked.connect(self.telemetry_button)
                         if name=="Calibration":
                                 self.button_name2= QtWidgets.QPushButton()
@@ -963,7 +1015,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 all_layout = QGridLayout()
                 #sizegrip = QtWidgets.QSizeGrip(MainWindow)
-                #all_layout.addWidget(sizegrip, 0, QtCore.Qt.AlignBottom | QtCore.Qt.AlignRight)
+                #all_layout.addWidget(sizegrip, 0, QtCore.Qt.AlignBottom  QtCore.Qt.AlignRight)
                 all_layout.addWidget(self.MAIN_widget,1,1,1,1)
                 all_layout.addWidget(self.gps_widget,1,2,1,1)
                 self.all_widget = QtWidgets.QWidget()
@@ -980,51 +1032,61 @@ class MainWindow(QtWidgets.QMainWindow):
                 
         def telemetry_button(self):
                 global cx
-                if self.button_name1.isChecked():
+                ser = serial.Serial('COM5', 9600)
+                if self.y:
                         self.button_name1.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
                         check = "ON"
+                        self.y = False
                 else:
                         self.button_name1.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )
                         check = "OFF"
-                cx = "CMD,1062,CX," + str(check) + "|\n"
+                        self.y = True
+                cx = "CMD,1062,CX," + str(check) + "\n"
                 ser.write(cx.encode())
+                ser.close()
                 print(cx)
         
         def calibration_button(self):
+                ser = serial.Serial('COM5', 9600)
                 y=0
                 if y==0:
                         self.button_name2.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
-                        cal = "CMD,1062,CAL|\n"
+                        cal = "CMD,1062,CAL\n"
                         ser.write(cal.encode())
                         y=1
                 if y==1:
                         self.button_name2.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )
                         y=0
+                ser.close()
         def set_time_utc_button(self):
+                ser = serial.Serial('COM5', 9600)
                 y=0
                 if y==0:
                         self.button_name3.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
                         now_utc = datetime.now(timezone.utc)
                         time_utc = now_utc.time()
                         b = time_utc.strftime('%H:%M:%S')
-                        utc = "CMD,1062,ST," + b + "|\n"
+                        utc = "CMD,1062,ST," + b + "\n"
                         ser.write(utc.encode())
                         y=1
                 if y==1:
                         self.button_name3.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )  
                         y=0
+                ser.close()
         def set_time_gps_button(self):
+                ser = serial.Serial('COM5', 9600)
                 y=0
                 if y==0:
                         self.button_name4.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
-                        gps = "CMD,1062,ST,GPS" + "|\n"
+                        gps = "CMD,1062,ST,GPS" + "\n"
                         ser.write(gps.encode())
                         y=1
                 if y==1:
                         self.button_name4.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )
                         y=0
-
+                ser.close()
         def simulation_enabled_button(self):
+                ser = serial.Serial('COM5', 9600)
                 global check_sim, sim
                 if self.button_name5.isChecked():
                         self.button_name5.setText("Simulation-Enable")
@@ -1036,10 +1098,12 @@ class MainWindow(QtWidgets.QMainWindow):
                         self.button_name5.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )
                         val = "DISABLE"
                         check_sim = 0
-                sim = "CMD,1062,SIM," + val + "|\n"
+                sim = "CMD,1062,SIM," + val + "\n"
                 ser.write(sim.encode())
-
+                ser.close()
         def simulation_activate_button(self):
+                global sima
+                ser = serial.Serial('COM5', 9600)
                 if check_sim == 1:
                         if self.button_name6.isChecked():
                                 self.button_name6.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
@@ -1049,10 +1113,10 @@ class MainWindow(QtWidgets.QMainWindow):
                         self.button_name6.setText("Simulation-Deactivate")
                         self.button_name6.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(0,0,0); }" % int((16/1980)*width) )
                         val = "DEACTIVATE"
-                sima = "CMD,1062,SIM," + val + "|\n"
+                sima = "CMD,1062,SIM," + val + "\n"
                 ser.write(sima.encode())
-
-                
+                ser.close()
+                                
         
         
 
