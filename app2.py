@@ -12,29 +12,25 @@ from PyQt5.QtCore import *
 from widget import states
 from widget import namewidget
 import data
-import serial
-import time
-from datetime import datetime,timezone
-import threading
-from digi.xbee.devices import XBeeDevice
 #from new import MyButton
 from buttonwidget import MyButton
 class MainWindow(QtWidgets.QMainWindow):
-        global lis,packet,simp, size, curstate, width, ser, PORT, BAUD_RATE, REMOTE_NODE_ID
-        global is_ascent, is_descent, is_heat_shield_deployed, is_landed, is_mast_raised, is_parachute_deployed,is_probe_deployed, is_rocket_separated
-        is_ascent, is_descent, is_heat_shield_deployed, is_landed, is_mast_raised, is_parachute_deployed,is_probe_deployed, is_rocket_separated = 0,0,0,0,0,0,0,0
-        corruptedPacketsValue =0              
+        global lis,packet,simp
+        
+        
+        packet = """1062,00:00:50,166876,S,              IDLE,*****,N,N,N,*****,00.0,********,00:00:00,*******,*******,*******,00,359.62,-16.00,CXON"""
+        lis = data.data(packet)
+                        
+        global size 
         size = 50
         i = 0
         a=0
         counter=0
-        check_sim = 0
+        global curstate
+        global width
         curstate = "Idle"
-        PORT = "COM5"
-        REMOTE_NODE_ID = "REMOTE"
-        DATA_TO_SEND = ""
-        BAUD_RATE = 9600
-        #------------------------------------------------------------       
+        
+        
         file = open("cansat_2023_simp.txt","r")
         simp1 = file.readlines()
         simp=[]
@@ -45,22 +41,46 @@ class MainWindow(QtWidgets.QMainWindow):
                 simp.remove("")
 
         simp = [sub.replace('$', '1062') for sub in simp]
-#-----------------------------------------------------------------------------------
+
+        
+        
+
+        def pc(self):
+                count=data.packet_count(lis)
+                self.packet_count.setText("Packet Count: "+str(count))
+
+        def cp(self):
+                count = 6
+                self.corrupted_packets.setText("Corrupted Packets: "+str(count))
+
+        def nogps(self):
+                count = data.gps_sats(lis)
+                self.no_of_gps.setText("No. of GPS: "+str(count))
+
+        def lati(self):
+                self.latitude.setText("Latitude: "+ "{:.4f}".format(self.lat))
+
+        def long(self):
+                self.longitude.setText("Longitude: " + "{:.4f}".format(self.lon) )
+
+
+        def current_state(self):
+                global curstate
+                currstate = [is_ascent,is_rocket_separated,is_probe_deployed, is_heat_shield_deployed,is_parachute_deployed,is_descent,is_landed,is_mast_raised]
+                allstate = ["Ascent","Rocket Separation","Probe Deployed","Heat Shield Deployed","Parachute Deployed","Descent","Landed", "Mast Raised"]
+                i = currstate.index(0)
+                curstate = allstate[i-1]
+
+                self.state.setText("Current State:"+ str(curstate))
+
+        def mode(self):
+                if curstate=="Idle" or curstate=="Mast Raised":
+                        state = "Idle"
+                else:
+                        state = "Flight"
+                self.mode_name.setText("Mode: " +str(state) )
 
         def mission_time(self):
-                now_utc = datetime.now(timezone.utc)
-                time_utc = now_utc.time()
-                v = time_utc.strftime('%H:%M:%S')
-                cont1 = list(v.split(":"))
-                cont=[]
-                for i in range(len(cont1)):
-                        a = cont1[i]
-                        a = int(a)
-                        cont+=[a]
-                cont[0] = cont[0]*3600
-                cont[1] = cont[1]*60
-                cont = cont[0] + cont[1] + cont[2]
-                self.time = cont
                 m = self.time//60
                 s = self.time%60
                 h = m//60
@@ -70,360 +90,91 @@ class MainWindow(QtWidgets.QMainWindow):
                         
                 self.MENU2_mission_time.setText("Mission Time:"+str(tim))
         
-         
-        def sending():
-                global DATA_TO_SEND, key
-                key = ""
-                DATA_TO_SEND = key
-                device = XBeeDevice(PORT, BAUD_RATE)
 
-                try:
-                        device.open()
+        def calibration_button(self):
+                return 0
 
-                        # Obtain the remote XBee device from the XBee network.
-                        xbee_network = device.get_network()
-                        remote_device = xbee_network.discover_device(REMOTE_NODE_ID)
-                        if remote_device is None:
-                                print("Could not find the remote device")
-                                exit(1)
+        def set_time_utc_button(self):
+                return 0
 
-                        print("Sending data to %s >> %s..." % (remote_device.get_64bit_addr(), DATA_TO_SEND))
+        def set_time_gps_button(self):
+                return 0
 
-                        device.send_data(remote_device, DATA_TO_SEND)
+        def simulation_enabled_button(self):
+                return "ENABLED"
 
-                        print("Success")
-
-                finally:
-                        if device is not None and device.is_open():
-                                device.close()
-                                DATA_TO_SEND = ""
-
-
-
+        def simulation_activate_button(self):
+                return "ACTIVATE"
         
-        def main(self):
-                global packet  # declare `a` as a global variable
-
-                device = XBeeDevice(PORT, BAUD_RATE)
-                packet = ""
-                try:
-                        device.open()
-
-                        def data_receive_callback(xbee_message):
-                                global packet
-                                packet = xbee_message.data.decode()
-                                print(packet)
-
-                        device.add_data_received_callback(data_receive_callback)
-
-                        input()
-
-                finally:
-                        if device is not None and device.is_open():
-                                device.close()
-
-
+        def packet_cou(self):
+                self.packet_count.setText("Packet Count : ", self.counter)
+        
+        
         def update(self):
-                global packet
-                print(packet)
-                if packet:
-                        self.my_packet = open("packet.txt","a+")
-                        self.my_packet.write(packet+"\n")
-                        self.my_packet.close()
-                        self.lis = list(packet.split(","))
-                        print(self.lis)
-
-
-                try:
-                        self.teamIdValue = int(self.lis[0])
-                except:
-                        self.teamIdValue = 0
-                try:
-                        self.missionTimeValue = self.lis[1]
-                except:
-                        self.missionTimeValue = ""
-                try:
-                        self.packetCountValue = int(self.lis[2])
-                except:
-                        self.packetCountValue = self.packetCountValue
-                try:
-                        self.modeValue = self.lis[3].strip()
-                except:
-                        self.modeValue = ""
-                try:
-                        self.stateValue = self.lis[4].strip()
-                except:
-                        self.stateValue = ""
-                try:
-                        self.altitudeValue = float(self.lis[5])
-                except:
-                        self.altitudeValue = 1.0
-                try:
-                        self.hsDeployedValue = self.lis[6]
-                except:
-                        self.hsDeployedValue = ""
-                try:
-                        self.pcDeployedValue = self.lis[7]
-                except:
-                        self.pcDeployedValue = ""
-                try:
-                        self.mastRaisedValue = self.lis[8]
-                except:
-                        self.mastRaisedValue = ""
-                try:
-                        self.temperatureValue = float(self.lis[9])
-                except:
-                        self.temperatureValue = 1.0
-                try:
-                        self.voltageValue = float(self.lis[10])
-                except:
-                        self.voltageValue = 1.0
-                try:
-                        self.pressureValue = float(self.lis[11])
-                except:
-                        self.pressureValue = 1.0
-                try:
-                        self.gpsTimeValue = self.lis[12]
-                except:
-                        self.gpsTimeValue = ""
-                try:
-                        self.gpsAltitudeValue = float(self.lis[13])
-                except:
-                        self.gpsAltitudeValue = 1.0
-                try:
-                        self.gpsLatitudeValue = float(self.lis[14])
-                except:
-                        self.gpsLatitudeValue = 1.0
-                try:
-                        self.gpsLongitudeValue = float(self.lis[15])
-                except:
-                        self.gpsLongitudeValue = 1.0
-                try:
-                        self.noOfGpsValue = int(self.lis[16])
-                except:
-                        self.noOfGpsValue = 0
-                try:
-                        self.tiltXValue = float(self.lis[17])
-                except:
-                        self.tiltXValue = 1.0
-                try:
-                        self.tiltYValue = float(self.lis[18])
-                except:
-                        self.tiltYValue = 1.0
-                try:
-                        self.cmdEchoValue = self.lis[19]
-                except:
-                        self.cmdEchoValue = ""
-                
-                self.q = ""
-                for x in range(18):
-                        self.q+="*"
-                        if self.q in self.lis:
-                                self.corruptedPacketsValue +=1
-                        else:
-                                self.corruptedPacketsValue+=0
-                
                 self.i += 1
-                try:
-                        self.graphPressure1.update(self.i,[ self.pressureValue])
-                except:
-                        pass
-                try:
-                        self.graphTemperature1.update(self.i,[ self.temperatureValue])
-                except:
-                        pass
-                try:
-                        self.graphAltitude1.update(self.i,[ self.altitudeValue])
-                except:
-                        pass
-                try:
-                        self.graphVoltage1.update(self.i,[ self.voltageValue])
-                except:
-                        pass
-                try:
-                        self.graphGPS_Altitude1.update(self.i,[ self.gpsAltitudeValue])
-                except:
-                        pass
-                try:    
-                        self.graphTilt_XY1.update(self.i,[ self.tiltXValue,self.tiltYValue])
-                except:
-                        pass
-                try:
-                        self.lat = self.gpsLatitudeValue
-                #if self.i%2 == 0:
-                except:
-                        self.lat = 0
-                try:
-                      self.lon = self.gpsLongitudeValue
-                except:
-                        self.lon = 0
-                self.map.update(self.lat, self.lon)
-                #printing the simp from text or csv file
-                """
-                if  (self.i<= len(simp) - 1):
-                        print(simp[int(self.i)])"""
-                try:
-                        self.team_label.setText("Team ID:" + str(self.teamIdValue))
-                except:
-                        pass
-                try:
-                        self.packet_count.setText("Packet Count: " + str(self.packetCountValue))
-                except:
-                        pass
-                try:
-                        self.no_of_gps.setText("No. of GPS: " + str(self.noOfGpsValue))
-                except:
-                        pass
-                try:
-                        self.latitude.setText("Latitude: "+ "{:.4f}".format(self.lat))
-                except:
-                        pass
-                try:
-                        self.longitude.setText("Longitude: " + "{:.4f}".format(self.lon) )
-                except:
-                        pass
-                try:
-                        self.corrupted_packets.setText("Corrupted Packets: "+str(self.corruptedPacketsValue))
-                except:
-                        pass
-                is_ascent, is_descent, is_heat_shield_deployed, is_landed, is_mast_raised, is_parachute_deployed,is_probe_deployed, is_rocket_separated = 0,0,0,0,0,0,0,0
-
-                
-
-
-                if (self.stateValue == "ASCENT"):
-                        is_ascent =  1
-                
-                if (self.stateValue == "DESCENT"):
-                        is_rocket_separated = 1
-                        is_ascent =  1
-                
-                if (self.stateValue == "PAYLOAD_DEPLOYED"):
-                        is_probe_deployed = 1
-                        is_rocket_separated = 1
-                        is_ascent =  1
-                
-                if (self.hsDeployedValue == "P"):
-                        is_heat_shield_deployed = 1
-                        is_probe_deployed = 1
-                        is_rocket_separated = 1
-                        is_ascent =  1
-                
-                if (self.pcDeployedValue == "C"):
-                        is_parachute_deployed = 1
-                        is_heat_shield_deployed = 1
-                        is_probe_deployed = 1
-                        is_rocket_separated = 1
-                        is_ascent =  1
-                
-                if (self.stateValue == "DESCENT"):
-                        is_descent = 1
-                        is_parachute_deployed = 1
-                        is_heat_shield_deployed = 1
-                        is_probe_deployed = 1
-                        is_rocket_separated = 1
-                        is_ascent =  1
-                
-                if (self.stateValue == "LANDED"):
-                        is_landed = 1
-                        is_descent = 1
-                        is_parachute_deployed = 1
-                        is_heat_shield_deployed = 1
-                        is_probe_deployed = 1
-                        is_rocket_separated = 1
-                        is_ascent =  1
-
-                if (self.mastRaisedValue == "M"):
-                        is_mast_raised = 1
-                        is_landed = 1
-                        is_descent = 1
-                        is_parachute_deployed = 1
-                        is_heat_shield_deployed = 1
-                        is_probe_deployed = 1
-                        is_rocket_separated = 1
-                        is_ascent =  1
-
-                if (is_ascent==1):
-                        self.dot1.setText("🟢")
+                if self.counter==0:
+                        self.x=15
+                        self.y=15
+                        self.counter+=1
+                elif self.counter==1:
+                        self.x=1
+                        self.y=1
+                        self.counter+=1
                 else:
-                        self.dot1.setText("🔴")
+                        self.x=randint(5,8)
+                        self.y=randint(5,8)
+                self.a += self.i
+                self.graphPressure1.update(self.i,[ self.x])
+                self.graphTemperature1.update(self.i,[ self.x])
+                self.graphAltitude1.update(self.i,[ self.x])
+                self.graphVoltage1.update(self.i,[ self.x])
+                print(data.tilt_x(lis),data.tilt_y(lis))
+                self.graphGPS_Altitude1.update(self.i,[ self.x])
+                self.graphTilt_XY1.update(self.i,[data.tilt_x(lis),data.tilt_y(lis)])
+                #self.graphTilt_XY1.update(self.i,[ data.tilt_x(lis),data.tilt_y(lis) * -1])
+                self.lat = data.gps_latitude(lis)
+                self.lon = data.gps_longitude(lis)
+                if self.i%8 == 0:
+                        self.map.update(self.lat, self.lon)
                 
-                if is_descent==1:
-                        self.dot2.setText("🟢")
-                else:
-                        self.dot2.setText("🔴")
-
-                if is_heat_shield_deployed==1:
-                        self.dot4.setText("🟢")
-                else:
-                        self.dot4.setText("🔴")
-
-                if is_probe_deployed==1:
-                        self.dot5.setText("🟢")
-                else:
-                        self.dot5.setText("🔴")
-
-                if is_parachute_deployed==1:
-                        self.dot6.setText("🟢")
-                else:
-                        self.dot6.setText("🔴")
-
-                if is_landed==1:
-                        self.dot7.setText("🟢")
-                else:
-                        self.dot7.setText("🔴")
-
-                if is_mast_raised==1:
-                        self.dot3.setText("🟢")
-                else:
-                        self.dot3.setText("🔴")
-
-                if is_rocket_separated==1:
-                        self.dot8.setText("🟢")
-                else:
-                        self.dot8.setText("🔴")
-
-                
-
-                currstate = [is_ascent,is_rocket_separated,is_probe_deployed, is_heat_shield_deployed,is_parachute_deployed,is_descent,is_landed,is_mast_raised]
-                allstate = ["Ascent","Rocket Separation","Probe Deployed","Heat Shield Deployed","Parachute Deployed","Descent","Landed", "Mast Raised"]
-                i = currstate.index(0)
-                curstate = allstate[i-1]
-
-                self.state.setText("Current State:"+ str(self.stateValue))
-
-                if self.modeValue == "S":
-
-                        self.mode_name.setText("Mode: " +"SIMULATION" )
-                if self.modeValue == "F":
-                        self.mode_name.setText("Mode: " +"FLIGHT" )
+                if ((self.i%4 == 0) and (self.i/4<= len(simp) - 1)):
+                        print(simp[int(self.i/4)])
 
         
-                
+        def update_packet():
 
-                
-
+                packet = """1062,00:00:50,166876,S,              IDLE,*****,N,N,N,*****,00.0,********,00:00:00,*******,*******,*******,00,359.62,-16.00,CXON"""
+                lis = data.data(packet)
               
+
+
+
+
+
+
+
+
+
+
                 
 #--------------------------------------------------------------------------------------------------------------------------------------
         def OnReturnPressed(self):
                 """ the text is retrieved from tele_cmd_textbox """
-                text = self.tele_cmd_textbox.text() + "\n"
+                text = self.tele_cmd_textbox.text()
                 # do some thing withit
-                self.cmdoutput(text)
-                ser.write(text.encode())
+                self.cmdoutput(text+"\n")
+                #yaha pe connect
         def onGettingData(self):
-                #input from cansat
-                text = "hi"
+                text = packet
                 # do some thing withit
                 self.log_output(text+"\n")
         
-        def log_output(self,text):
+        def log_output(self,text="hi"):
                 self.logOutput.moveCursor(QTextCursor.End)
                 self.logOutput.insertPlainText(text)
                 sb = self.logOutput.verticalScrollBar()
                 sb.setValue(sb.maximum())
-        def cmdoutput(self,text):
+        def cmdoutput(self,text="hi"):
                 self.cmdOutput.moveCursor(QTextCursor.End)
                 self.cmdOutput.insertPlainText(text)
                 sb = self.cmdOutput.verticalScrollBar()
@@ -449,39 +200,41 @@ class MainWindow(QtWidgets.QMainWindow):
 
 #-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
                 self.timer = QtCore.QTimer()
-                self.timer.setInterval(100)
+                self.timer.setInterval(250)
                 def buttonfunc(name,fontsize):
                         button_layout=QHBoxLayout()
                         if name=="Telemetry":
                                 self.button_name1= QtWidgets.QPushButton()
-                                #self.button_name1.setCheckable(True)
+                                self.button_name1.setCheckable(True)
                                 self.button_name1.setText(name)
                                 self.button_name1.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % fontsize)
                                 button_layout.addWidget(self.button_name1)
-                                self.y = True
                                 self.button_name1.clicked.connect(self.telemetry_button)
                         if name=="Calibration":
                                 self.button_name2= QtWidgets.QPushButton()
+                                self.button_name2.setCheckable(True)
                                 self.button_name2.setText(name)
                                 self.button_name2.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % fontsize)
                                 button_layout.addWidget(self.button_name2)
                                 self.button_name2.clicked.connect(self.calibration_button)
                         if name=="Set Time UTC":
                                 self.button_name3= QtWidgets.QPushButton()
+                                self.button_name3.setCheckable(True)
                                 self.button_name3.setText(name)
                                 self.button_name3.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % fontsize)
                                 button_layout.addWidget(self.button_name3)
                                 self.button_name3.clicked.connect(self.set_time_utc_button)
                         if name=="Set Time GPS":
                                 self.button_name4= QtWidgets.QPushButton()
+                                self.button_name4.setCheckable(True)
                                 self.button_name4.setText(name)
                                 self.button_name4.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % fontsize)
                                 button_layout.addWidget(self.button_name4)
                                 self.button_name4.clicked.connect(self.set_time_gps_button)
                         if name=="Simulation-Enable":
                                 self.button_name5= QtWidgets.QPushButton()
-                                self.button_name5.setText(name)
                                 self.button_name5.setCheckable(True)
+                                self.button_name5.setText(name)
                                 self.button_name5.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % fontsize)
                                 button_layout.addWidget(self.button_name5)
                                 self.button_name5.clicked.connect(self.simulation_enabled_button)
@@ -489,7 +242,7 @@ class MainWindow(QtWidgets.QMainWindow):
                                 self.button_name6= QtWidgets.QPushButton()
                                 self.button_name6.setCheckable(True)
                                 self.button_name6.setText(name)
-                                self.button_name6.setStyleSheet("QPushButton{color: rgb(200,200,200); font: %spt  'Oswald';background-color: rgb(10,10,10); }" % fontsize)
+                                self.button_name6.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % fontsize)
                                 button_layout.addWidget(self.button_name6)
                                 self.button_name6.clicked.connect(self.simulation_activate_button)
         
@@ -507,41 +260,49 @@ class MainWindow(QtWidgets.QMainWindow):
                                 self.dot1.setText("🔴")
                                 self.dot1.setStyleSheet("QLabel{color: rgb(255,0,13); ; font: %spt  'Oswald'; background-color: rgb(30,30,30);}" % fontsize)
                                 layout.addWidget(self.dot1,1,1,1,1)
+                                self.timer.timeout.connect(self.ascent)
                         if state == "Descent":
                                 self.dot2= QLabel("🔴")
                                 self.dot2.setText("🔴")
                                 self.dot2.setStyleSheet("QLabel{color: rgb(255,0,13); ; font: %spt  'Oswald'; background-color: rgb(30,30,30);}" % fontsize)
                                 layout.addWidget(self.dot2,1,1,1,1)
+                                self.timer.timeout.connect(self.descent)
                         if state == "Mast Raised":
                                 self.dot3= QLabel("🔴")
                                 self.dot3.setText("🔴")
                                 self.dot3.setStyleSheet("QLabel{color: rgb(255,0,13); ; font: %spt  'Oswald'; background-color: rgb(30,30,30);}" % fontsize)
                                 layout.addWidget(self.dot3,1,1,1,1)
+                                self.timer.timeout.connect(self.mast_raised)
                         if state == "Heat Shield Deployed":
                                 self.dot4= QLabel("🔴")
                                 self.dot4.setText("🔴")
                                 self.dot4.setStyleSheet("QLabel{color: rgb(255,0,13); ; font: %spt  'Oswald'; background-color: rgb(30,30,30);}" % fontsize)
                                 layout.addWidget(self.dot4,1,1,1,1)
+                                self.timer.timeout.connect(self.heat_shield_deployed)
                         if state == "Probe Deployed":
                                 self.dot5= QLabel("🔴")
                                 self.dot5.setText("🔴")
                                 self.dot5.setStyleSheet("QLabel{color: rgb(255,0,13); ; font: %spt  'Oswald'; background-color: rgb(30,30,30);}" % fontsize)
                                 layout.addWidget(self.dot5,1,1,1,1)
+                                self.timer.timeout.connect(self.probe_deployed)
                         if state == "Parachute Deployed":
                                 self.dot6= QLabel("🔴")
                                 self.dot6.setText("🔴")
                                 self.dot6.setStyleSheet("QLabel{color: rgb(255,0,13); ; font: %spt  'Oswald'; background-color: rgb(30,30,30);}" % fontsize)
                                 layout.addWidget(self.dot6,1,1,1,1)
+                                self.timer.timeout.connect(self.parachute_deployed)
                         if state == "Landed":
                                 self.dot7= QLabel("🔴")
                                 self.dot7.setText("🔴")
                                 self.dot7.setStyleSheet("QLabel{color: rgb(255,0,13); ; font: %spt  'Oswald'; background-color: rgb(30,30,30);}" % fontsize)
                                 layout.addWidget(self.dot7,1,1,1,1)
+                                self.timer.timeout.connect(self.landed)
                         if state == "Rocket Separation":
                                 self.dot8= QLabel("🔴")
                                 self.dot8.setText("🔴")
                                 self.dot8.setStyleSheet("QLabel{color: rgb(255,0,13); ; font: %spt  'Oswald'; background-color: rgb(30,30,30);}" % fontsize)
                                 layout.addWidget(self.dot8,1,1,1,1)
+                                self.timer.timeout.connect(self.rocket_separated)
                         
                         state_label.setStyleSheet("QLabel{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % fontsize)
 
@@ -577,8 +338,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 logo2_layout.setSpacing(0)
                 logo2_layout.addWidget(self.logo2)
                 self.logo2_widget = QtWidgets.QWidget()
-                self.logo2_widget.setFixedWidth(int((60/1980)*self.w))
-                self.logo2_widget.setFixedHeight(int((60/880)*self.h))
+                self.logo2_widget.setFixedWidth(int((180/1980)*self.w))
+                self.logo2_widget.setFixedHeight(int((150/880)*self.h))
                 self.logo2_widget.setLayout(logo2_layout)
         #-------team id widget starts---------------------------------------------------------------------
                 self.team_label = QLabel('TEAM ID:1062')
@@ -590,25 +351,24 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.team_widget.setFixedHeight(int((50/880)*self.h))
                 self.team_widget.move(0,0)
                 self.team_widget.setLayout(team_layout)
-                self.team_widget.setStyleSheet("QLabel{color: #f5fcff; font: %spt  'Oswald'; background-color: rgb(15,15,15); }" %(int(((20/1980)/50)*size*self.w)))
+                self.team_widget.setStyleSheet("QLabel{color: #f5fcff; font: %spt  'Oswald'; background-color: rgb(15,15,15); }" %(int(((15/1980)/50)*size*self.w)))
         #-------team id widget ends-----------------------------------------------------------------------
         #-------logo plus team id combined widget starts----------------------------------------------------
                 MENU1_layout = QGridLayout()
                 MENU1_layout.setSpacing(0)
                 #MENU1_layout.addWidget(self.logo2_widget,1,0,1,1,QtCore.Qt.AlignVCenter)
-                MENU1_layout.addWidget(self.logo_widget,0,0,1,1,QtCore.Qt.AlignCenter)
+                MENU1_layout.addWidget(self.logo2_widget,0,0,1,1,QtCore.Qt.AlignCenter)
                 MENU1_layout.addWidget(self.team_widget,1,0,1,1,QtCore.Qt.AlignTop)
                 self.MENU1_widget = QtWidgets.QWidget()
                 self.MENU1_widget.setLayout(MENU1_layout)
                 self.MENU1_widget.setFixedWidth(int((260/1980)*self.w))
                 self.MENU1_widget.setFixedHeight(int((230/880)*self.h))
-                #self.MENU1_widget.seftStyleSheet("QLabel{color: #f5fcff; font: %spt  'Oswald'; background-color: rgb(15,15,15); }" %(int((25/1980)*self.w)))
+                #self.MENU1_widget.setStyleSheet("QLabel{color: #f5fcff; font: %spt  'Oswald'; background-color: rgb(15,15,15); }" %(int((25/1980)*self.w)))
         #-------logo plus team id combined widget ends---------------------------------------------------------------------------
         #-------mission time widget starts---------------------------------------------------------------------------------------       
                 self.MENU2_mission_time = QLabel('Mission Time: 00:00:00.00')
                 self.MENU2_mission_time.setAlignment(QtCore.Qt.AlignCenter)
-                
-                self.time = 0
+                self.time = data.mission_time(lis)
                 self.timer2 = QTimer()
                 self.timer2.setInterval(1000)
                 self.timer2.start()
@@ -624,11 +384,11 @@ class MainWindow(QtWidgets.QMainWindow):
         #-------mission time widget ends----------------------------------------------------------------------------------------------
         #-------state widget starts------------------------------------------------------------------------------------------------------
                 self.state = QLabel("Current State: Ascent")
-                self.state.setAlignment(QtCore.Qt.AlignCenter)
                 state_layout = QVBoxLayout()
+                self.state.setAlignment(QtCore.Qt.AlignCenter)
                 state_layout.addWidget(self.state)
                 self.state_widget = QtWidgets.QWidget()
-                self.state_widget.setFixedWidth(int((400/1980)*self.w))
+                self.state_widget.setFixedWidth(int((440/1980)*self.w))
                 self.state_widget.setFixedHeight(int((60/880)*self.h))
                 self.state_widget.setStyleSheet("QLabel{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" %(int(((19/1980)/50)*size*self.w)))
                 self.state_widget.setLayout(state_layout)
@@ -638,7 +398,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 mode_layout = QVBoxLayout()
                 mode_layout.addWidget(self.mode_name)
                 self.mode_widget = QtWidgets.QWidget()
-                self.mode_widget.setFixedWidth(int((280/1980)*self.w))
+                self.mode_widget.setFixedWidth(int((180/1980)*self.w))
                 self.mode_widget.setFixedHeight(int((60/880)*self.h))
                 self.mode_name.setAlignment(QtCore.Qt.AlignCenter)
                 self.mode_widget.setStyleSheet("QLabel{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" %(int(((19/1980)/50)*size*self.w)))
@@ -712,7 +472,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 MENU3_layout.addWidget(self.state_widget,1,3,1,1,QtCore.Qt.AlignTop)
                 self.MENU3_widget = QtWidgets.QWidget()
                 self.MENU3_widget.setLayout(MENU3_layout)  
-                self.MENU3_widget.setFixedWidth(int((1050/1980)*self.w))
+                self.MENU3_widget.setFixedWidth(int((950/1980)*self.w))
                 self.MENU3_widget.setFixedHeight(int((80/880)*self.h))      
                 self.MENU3_widget.setStyleSheet("QWidget{background-color: rgb(20,20,20); }")
         #-------menu 3 ends------------------------------------------------------------------------------------------------------------------------
@@ -958,7 +718,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.packet_count_widget.setLayout(packet_count_layout)
         #-------packet count widget ends--------------------------------------------------------------------------------------------------------------
         #-------corrupted packets widget starts--------------------------------------------------------------------------------------------------------------
-                self.corrupted_packets = QLabel("Corrupted Packets: 0")
+                self.corrupted_packets = QLabel("Corrupted Packets: 5")
                 self.corrupted_packets.setAlignment(QtCore.Qt.AlignCenter)
                 corrupted_packets_layout = QHBoxLayout()
                 #corrupted_packets_layout.setSpacing(0)
@@ -990,12 +750,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.telemet_widget.setLayout(telemet_layout)
         #-------telemetry widget ends--------------------------------------------------------------------------------------------------------------------------------------
         #-------longitude, latitude , no. of gps widget starts---------------------------------------------------------------------------------------------------------------
-                self.longitude = QLabel("Longitude: 00.0000°E")
+                self.longitude = QLabel("Longitude: 78.5718°E")
                 self.longitude.setAlignment(QtCore.Qt.AlignCenter)
-                self.latitude = QLabel("Latitude: 00.0000°N")
+                self.latitude = QLabel("Latitude: 17.5449°N")
                 self.latitude.setAlignment(QtCore.Qt.AlignCenter)
                 self.gps_location = QLabel("GPS Location")
-                self.no_of_gps = QLabel("No. of GPS: 0")
+                self.no_of_gps = QLabel("No. of GPS: 5")
                 self.no_of_gps.setAlignment(QtCore.Qt.AlignCenter)
 
                 no_of_gps_layout = QHBoxLayout()
@@ -1060,7 +820,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
                 all_layout = QGridLayout()
                 #sizegrip = QtWidgets.QSizeGrip(MainWindow)
-                #all_layout.addWidget(sizegrip, 0, QtCore.Qt.AlignBottom  QtCore.Qt.AlignRight)
+                #all_layout.addWidget(sizegrip, 0, QtCore.Qt.AlignBottom | QtCore.Qt.AlignRight)
                 all_layout.addWidget(self.MAIN_widget,1,1,1,1)
                 all_layout.addWidget(self.gps_widget,1,2,1,1)
                 self.all_widget = QtWidgets.QWidget()
@@ -1071,127 +831,133 @@ class MainWindow(QtWidgets.QMainWindow):
         #-------main window ends--------------------------------------------------------------------------------------------------
                 
                 self.timer.timeout.connect(self.update)
+                self.timer.timeout.connect(self.current_state)
+                self.timer.timeout.connect(self.mode)
+                self.timer.timeout.connect(self.pc)
+                self.timer.timeout.connect(self.cp)
+                self.timer.timeout.connect(self.lati)
+                self.timer.timeout.connect(self.long)
+                self.timer.timeout.connect(self.nogps)
                 self.timer.timeout.connect(self.onGettingData)
                 
                 self.timer.start()
                 
         def telemetry_button(self):
-                global key
-                global cx
-                if self.y:
+                if self.button_name1.isChecked():
                         self.button_name1.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
-                        check = "ON"
-                        self.y = False
                 else:
                         self.button_name1.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )
-                        check = "OFF"
-                        self.y = True
-                cx = "CMD,1062,CX," + str(check) + "\n"
-                key = cx
-                self.sending()
-                print(cx)
-        
+
+
+                return "ON"
         def calibration_button(self):
-                global key
-                y=0
-                if y==0:
+                if self.button_name2.isChecked():
                         self.button_name2.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
-                        cal = "CMD,1062,CAL\n"
-                        key = cal
-                        self.sending()
-                        y=1
-                if y==1:
-                        self.button_name2.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )
-                        y=0
-        def set_time_utc_button(self):
-                global key
-                y=0
-                if y==0:
-                        self.button_name3.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
-                        now_utc = datetime.now(timezone.utc)
-                        time_utc = now_utc.time()
-                        b = time_utc.strftime('%H:%M:%S')
-                        utc = "CMD,1062,ST," + b + "\n"
-                        key = utc
-                        self.sending()
-                        y=1
-                if y==1:
-                        self.button_name3.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )  
-                        y=0
-        def set_time_gps_button(self):
-                global key
-                y=0
-                if y==0:
-                        self.button_name4.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
-                        gps = "CMD,1062,ST,GPS" + "\n"
-                        key = gps
-                        self.sending()
-                        y=1
-                if y==1:
-                        self.button_name4.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )
-                        y=0
-        def simulation_enabled_button(self):
-                global check_sim, sim
-                global key
-                if self.button_name5.isChecked():
-                        self.button_name5.setText("Simulation-Disable")
-                        self.button_name5.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
-                        check_sim = 1
-                        val = "ENABLE"
-                        self.button_name6.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )
                 else:
-                        self.button_name5.setText("Simulation-Enable")
+                        self.button_name2.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )
+
+
+                return 0
+
+        def set_time_utc_button(self):
+                if self.button_name3.isChecked():
+                        self.button_name3.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
+                else:
+                        self.button_name3.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )
+
+
+                return 0
+
+        def set_time_gps_button(self):
+                if self.button_name4.isChecked():
+                        self.button_name4.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
+                else:
+                        self.button_name4.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )
+
+
+                return 0
+
+        def simulation_enabled_button(self):
+                if self.button_name5.isChecked():
+                        self.button_name5.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
+                else:
                         self.button_name5.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )
-                        val = "DISABLE"
-                        check_sim = 0
-                        self.button_name6.setText("Simulation-Activate")
-                        self.button_name6.setStyleSheet("QPushButton{color: rgb(200,200,200); font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
-                sim = "CMD,1062,SIM," + val + "\n"
-                key = sim
-                self.sending()
-                
+
+
+                return "ENABLED"
+
         def simulation_activate_button(self):
-                global sima
-                global key
-                if check_sim == 1:
-                        if self.button_name6.isChecked():
-                                self.button_name6.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
-                                self.button_name6.setText("Simulation-Deactivate")
-                                val = "ACTIVATE"
-                        else:
-                                self.button_name6.setText("Simulation-Activate")
-                                self.button_name6.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(0,0,0); }" % int((16/1980)*width) )
-                                #val = "DISABLE"
-                if check_sim == 0:
-                        if self.button_name6.isChecked():
-                                self.button_name6.setStyleSheet("QPushButton{color: rgb(200,200,200); font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
-                                self.button_name6.setText("Simulation-Deactivate")
-                        else:
-                                self.button_name6.setText("Simulation-Activate")
-                                self.button_name6.setStyleSheet("QPushButton{color: rgb(200,200,200); font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
+                if self.button_name6.isChecked():
+                        self.button_name6.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
+                else:
+                        self.button_name6.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )
 
 
-                sima = "CMD,1062,SIM," + val + "\n"
-                key = sima
-                self.sending()
-        packet = ""
-
-        t1 = threading.Thread(target=main)
-        t2 = threading.Thread(target=update)
-        t3 = threading.Thread(target=sending)
-
-        # Start the threads
-        t1.start()
-        t2.start()
-        t3.start()
-
-        # Wait for the threads to finish
-        t1.join()
-        t2.join()
-        t3.join()
-                                
+                return "ACTIVATE"
         
-        
+        def ascent(self):
+                global is_ascent
+                is_ascent=1
+                if (is_ascent==1):
+                        self.dot1.setText("🟢")
+                else:
+                        self.dot1.setText("🔴")
+
+        def descent(self):
+                global is_descent
+                is_descent=1
+                if is_descent==1:
+                        self.dot2.setText("🟢")
+                else:
+                        self.dot2.setText("🔴")
+
+        def heat_shield_deployed(self):
+                global is_heat_shield_deployed
+                is_heat_shield_deployed=1
+                if is_heat_shield_deployed==1:
+                        self.dot4.setText("🟢")
+                else:
+                        self.dot4.setText("🔴")
+
+        def probe_deployed(self):
+                global is_probe_deployed
+                is_probe_deployed=1
+                if is_probe_deployed==1:
+                        self.dot5.setText("🟢")
+                else:
+                        self.dot5.setText("🔴")
+
+        def parachute_deployed(self):
+                global is_parachute_deployed
+                is_parachute_deployed=0
+                if is_parachute_deployed==1:
+                        self.dot6.setText("🟢")
+                else:
+                        self.dot6.setText("🔴")
+
+        def landed(self):
+                global is_landed
+                is_landed=0
+                if is_landed==1:
+                        self.dot7.setText("🟢")
+                else:
+                        self.dot7.setText("🔴")
+
+        def mast_raised(self):
+                global is_mast_raised
+                is_mast_raised=0
+                if is_mast_raised==1:
+                        self.dot3.setText("🟢")
+                else:
+                        self.dot3.setText("🔴")
+
+        def rocket_separated(self):
+                global is_rocket_separated
+                is_rocket_separated=1
+                if is_rocket_separated==1:
+                        self.dot8.setText("🟢")
+                else:
+                        self.dot8.setText("🔴")
 
 app = QtWidgets.QApplication(sys.argv)
 w = MainWindow()

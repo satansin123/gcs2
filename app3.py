@@ -70,10 +70,9 @@ class MainWindow(QtWidgets.QMainWindow):
                         
                 self.MENU2_mission_time.setText("Mission Time:"+str(tim))
         
-         
-        def sending():
-                global DATA_TO_SEND, key
-                key = ""
+        
+        def sending(key):
+                global DATA_TO_SEND
                 DATA_TO_SEND = key
                 device = XBeeDevice(PORT, BAUD_RATE)
 
@@ -125,7 +124,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
         def update(self):
                 global packet
-                print(packet)
                 if packet:
                         self.my_packet = open("packet.txt","a+")
                         self.my_packet.write(packet+"\n")
@@ -1076,7 +1074,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.timer.start()
                 
         def telemetry_button(self):
-                global key
                 global cx
                 if self.y:
                         self.button_name1.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
@@ -1087,24 +1084,20 @@ class MainWindow(QtWidgets.QMainWindow):
                         check = "OFF"
                         self.y = True
                 cx = "CMD,1062,CX," + str(check) + "\n"
-                key = cx
-                self.sending()
+                self.sending(cx)
                 print(cx)
         
         def calibration_button(self):
-                global key
                 y=0
                 if y==0:
                         self.button_name2.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
                         cal = "CMD,1062,CAL\n"
-                        key = cal
-                        self.sending()
+                        self.sending(cal)
                         y=1
                 if y==1:
                         self.button_name2.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )
                         y=0
         def set_time_utc_button(self):
-                global key
                 y=0
                 if y==0:
                         self.button_name3.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
@@ -1112,27 +1105,23 @@ class MainWindow(QtWidgets.QMainWindow):
                         time_utc = now_utc.time()
                         b = time_utc.strftime('%H:%M:%S')
                         utc = "CMD,1062,ST," + b + "\n"
-                        key = utc
-                        self.sending()
+                        self.sending(utc)
                         y=1
                 if y==1:
                         self.button_name3.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )  
                         y=0
         def set_time_gps_button(self):
-                global key
                 y=0
                 if y==0:
                         self.button_name4.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
                         gps = "CMD,1062,ST,GPS" + "\n"
-                        key = gps
-                        self.sending()
+                        self.sending(gps)
                         y=1
                 if y==1:
                         self.button_name4.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )
                         y=0
         def simulation_enabled_button(self):
                 global check_sim, sim
-                global key
                 if self.button_name5.isChecked():
                         self.button_name5.setText("Simulation-Disable")
                         self.button_name5.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
@@ -1147,12 +1136,10 @@ class MainWindow(QtWidgets.QMainWindow):
                         self.button_name6.setText("Simulation-Activate")
                         self.button_name6.setStyleSheet("QPushButton{color: rgb(200,200,200); font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
                 sim = "CMD,1062,SIM," + val + "\n"
-                key = sim
-                self.sending()
+                self.sending(sim)
                 
         def simulation_activate_button(self):
                 global sima
-                global key
                 if check_sim == 1:
                         if self.button_name6.isChecked():
                                 self.button_name6.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
@@ -1172,8 +1159,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
                 sima = "CMD,1062,SIM," + val + "\n"
-                key = sima
-                self.sending()
+                self.sending(sima)
         packet = ""
 
         t1 = threading.Thread(target=main)
@@ -1195,5 +1181,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 app = QtWidgets.QApplication(sys.argv)
 w = MainWindow()
+
 w.show()
+#w.sending()
 sys.exit(app.exec_())
