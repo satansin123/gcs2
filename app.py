@@ -9,7 +9,6 @@ from map_plot import mapWidget
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-from widget import states
 from widget import namewidget
 import data
 import serial
