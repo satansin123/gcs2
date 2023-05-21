@@ -25,70 +25,79 @@ curstate = "Idle"
 is_ascent, is_descent, is_heat_shield_deployed, is_landed, is_mast_raised, is_parachute_deployed,is_probe_deployed, is_rocket_separated = 0,0,0,0,0,0,0,0
 corruptedPacketsValue =0 
 global packet, device
-
+simp = ""
 device = XBeeDevice(PORT, BAUD_RATE)
 device.open()
+previous_state = None
 
 # Worker thread for sending data
 class SendDataThread(QThread):
-    def __init__(self):
-        super().__init__()
-        global DATA_TO_SEND
-        
-
-    def run(self):
-        global DATA_TO_SEND, device
-        try:
-            data = DATA_TO_SEND
-            print(data,1)
-            
-            remote  = RemoteXBeeDevice(device,XBee64BitAddress.from_hex_string("0013A20040B58D1F"))
-            device.send_data(remote,data)
-            print(data,2)
-        except:
-               pass
-            
-
-        finally:
-            if device is not None and device.is_open():
-                DATA_TO_SEND = ""
-                print("yo")
+        def __init__(self):
+                super().__init__()
+                global DATA_TO_SEND
 
 
-        
+        def run(self):
+                global DATA_TO_SEND, device, remote
+                try:
+                        data = DATA_TO_SEND
+                        #print(data,1)
+                        
+                        remote  = RemoteXBeeDevice(device,XBee64BitAddress.from_hex_string("0013A20040B58D1F"))
+                        device.send_data(remote,data)
+                        #print(data,2)
+                except:
+                        pass
+                        
+
+                finally:
+                        if device is not None and device.is_open():
+                                DATA_TO_SEND = ""
+                                #print("yo")
 
 
 class ReceiveDataThread(QThread):
-    data_received = pyqtSignal(str)
+        data_received = pyqtSignal(str)
 
-    def __init__(self):
-        super().__init__()
+        def __init__(self):
+                super().__init__()
 
-    def run(self):
-        global packet, device
-        packet = ""
-        try:
+        def run(self):
+                global packet, device
+                packet = ""
+                try:
 
-            def data_receive_callback(xbee_message):
-                global packet
-                
-                packet = xbee_message.data.decode()
-                self.data_received.emit(packet)
-                
+                        def data_receive_callback(xbee_message):
+                                global packet
 
-            device.add_data_received_callback(data_receive_callback)
+                                packet = xbee_message.data.decode()
+                                self.data_received.emit(packet)
+                                
 
-            input()
+                        device.add_data_received_callback(data_receive_callback)
+
+                        input()
         
-        except Exception as e:
-            print(f"Error receiving data: {e}")
+                except Exception as e:
+                        MainWindow().onGettingData(f"Error receiving data: {e}")
 
-        finally:
-            if device is not None and device.is_open():
-                pass
+                finally:
+                        if device is not None and device.is_open():
+                                pass
 
 
 class MainWindow(QMainWindow):
+    def upload_file(self,event):
+        if event.button() == Qt.LeftButton:
+                file_dialog = QFileDialog()
+                file_dialog.exec_()
+
+                # Retrieve the selected file(s)
+                file_paths = file_dialog.selectedFiles()
+                for file_path in file_paths:
+                        #print(f"Selected file: {file_path}")
+                        self.send_simulation(file_path)
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Rocket Probe GUI")
@@ -228,7 +237,23 @@ class MainWindow(QMainWindow):
         self.logo_widget.setFixedWidth(int((230/1980)*self.w))
         self.logo_widget.setFixedHeight(int((70/880)*self.h))
         self.logo_widget.setLayout(logo_layout)
+        self.logo_widget.setCursor(Qt.PointingHandCursor)
+        self.logo_widget.mousePressEvent = self.upload_file
 #-------logowidget ends----------------------------------------------------------------
+        self.connector = namewidget()
+
+        """self.painter = QPainter(self)
+        self.painter.setRenderHint(QPainter.Antialiasing)
+        self.painter.setBrush(QBrush(QColor('red')))
+        self.painter.setPen(Qt.NoPen)
+        self.size1 = min(int((230/1980)*self.w), int((70/880)*self.h))
+        self.painter.drawEllipse(int(((230/1980)*self.w - self.size1) // 2), int(((70/880)*self.h - self.size1)) // 2, size, size)
+        painter_layout = QVBoxLayout()
+        painter_layout.addwidget(self.painter)
+        self.painter_widget = QtWidgets.QWidget()
+        self.painter_widget.setFixedWidth(int((60/1980)*self.w))
+        self.painter_widget.setFixedHeight(int((60/880)*self.h))
+        self.painter_widget.setLayout(painter_layout)"""
 #-------bits logo starts-------------------------------------------------------------------
         self.logo2 = QLabel()
         logo2_image = QPixmap('./bits.png')
@@ -394,7 +419,7 @@ class MainWindow(QMainWindow):
         MENU5_layout.setSpacing(0)
         MENU5_layout.addWidget(self.MENU1_widget,0,0,1,1,QtCore.Qt.AlignCenter)
         MENU5_layout.addWidget(self.MENU4_widget,0,1,1,6,QtCore.Qt.AlignCenter)
-        #MENU5_layout.addWidget(self.logo2_widget,0,7,1,1,QtCore.Qt.AlignCenter)
+        MENU5_layout.addWidget(self.connector.nameline("",int(((60/1980)/50)*size*self.w),int(((60/880)/50)*size*self.h),int(((13/1980)/50)*size*self.w)),0,7,1,1,QtCore.Qt.AlignCenter)
         self.MENU5_widget = QtWidgets.QWidget()
         self.MENU5_widget.setFixedWidth(int((1350/1980)*self.w))
         self.MENU5_widget.setFixedHeight(int((220/880)*self.h))
@@ -418,13 +443,15 @@ class MainWindow(QMainWindow):
 #-------button widget ends---------------------------------------------------------------------------------------------------------------
 #-------graph1 starts, code can be found in plot.py and widget.py--------------------------------------------------------------------
 #-------graph pressure starts---------------------------------------------------------------------------------------------
+        self.pressure_widget = namewidget()
+
         self.graphPressure1 = graph([
                 {
                         "color": (245,252,255),
                         "name": "Pressure"
                 }], True, 200, "", "Pressure ")
         graphPressure_Layout = QVBoxLayout()
-        graphPressure_Layout.addWidget(namewidget().nameline("Pressure",int(((7/1980)/50)*size*self.w),int(((25/880)/50)*size*self.h),int(((13/1980)/50)*size*self.w)))
+        graphPressure_Layout.addWidget(self.pressure_widget.nameline("Pressure",int(((7/1980)/50)*size*self.w),int(((25/880)/50)*size*self.h),int(((13/1980)/50)*size*self.w)))
         graphPressure_Layout.addWidget(self.graphPressure1.graphWidget)
         self.graphPressure = QtWidgets.QWidget()
         self.graphPressure.setLayout(graphPressure_Layout)
@@ -433,13 +460,14 @@ class MainWindow(QMainWindow):
         self.graphPressure.setStyleSheet("QLabel{color: #f5fcff; font: 10pt  'Oswald';background-color: rgb(3,0,13); }")
 #-------graph pressure ends---------------------------------------------------------------------------------------------------
 #-------graph temperature starts----------------------------------------------------------------------------------------------
+        self.temperature_widget = namewidget()
         self.graphTemperature1 = graph([
                 {
                         "color": (245,252,255),
                         "name": "Temperature"
                 }], True, 200, "", "Temperature ")
         graphTemperature_Layout = QVBoxLayout()
-        graphTemperature_Layout.addWidget(namewidget().nameline("Temperature",int(((7/1980)/50)*size*self.w),int(((25/880)/50)*size*self.h),int(((13/1980)/50)*size*self.w)))
+        graphTemperature_Layout.addWidget(self.temperature_widget.nameline("Temperature",int(((7/1980)/50)*size*self.w),int(((25/880)/50)*size*self.h),int(((13/1980)/50)*size*self.w)))
         graphTemperature_Layout.addWidget(self.graphTemperature1.graphWidget)
         self.graphTemperature = QtWidgets.QWidget()
         self.graphTemperature.setLayout(graphTemperature_Layout)
@@ -448,13 +476,14 @@ class MainWindow(QMainWindow):
         self.graphTemperature.setStyleSheet("QLabel{color: #f5fcff; font: 10pt  'Oswald';background-color: rgb(3,0,13); }")
 #-------graph temperature ends-------------------------------------------------------------------------------------------------
 #-------graph altitude starts---------------------------------------------------------------------------------------------------
+        self.altitude_widget = namewidget()
         self.graphAltitude1 = graph([
                 {
                         "color": (245,252,255),
                         "name": "Altitude"
                 }], True, 200, "", "Altitude ")
         graphAltitude_Layout = QVBoxLayout()
-        graphAltitude_Layout.addWidget(namewidget().nameline("Altitude",int(((7/1980)/50)*size*self.w),int(((25/880)/50)*size*self.h),int(((13/1980)/50)*size*self.w)))
+        graphAltitude_Layout.addWidget(self.altitude_widget.nameline("Altitude",int(((7/1980)/50)*size*self.w),int(((25/880)/50)*size*self.h),int(((13/1980)/50)*size*self.w)))
         graphAltitude_Layout.addWidget(self.graphAltitude1.graphWidget)
         self.graphAltitude = QtWidgets.QWidget()
         self.graphAltitude.setLayout(graphAltitude_Layout)
@@ -475,13 +504,14 @@ class MainWindow(QMainWindow):
 #-------graph 1 widget making ends---------------------------------------------------------------------------------------------------
 #-------graph2 widget starts, code can found on widget.py and plot.py-----------------------------------------------------------------------------------------
 #-------graph voltage starts---------------------------------------------------------------------------------------------------------
+        self.voltage_widget = namewidget()
         self.graphVoltage1 = graph([
                 {
                         "color": (245,252,255),
                         "name": "Voltage"
                 }], True, 200, "", "Voltage ")
         graphVoltage_Layout = QVBoxLayout()
-        graphVoltage_Layout.addWidget(namewidget().nameline("Voltage",int((7/1980)*self.w),int((25/880)*self.h),int((13/1980)*self.w)))
+        graphVoltage_Layout.addWidget(self.voltage_widget.nameline("Voltage",int((7/1980)*self.w),int((25/880)*self.h),int((13/1980)*self.w)))
         graphVoltage_Layout.addWidget(self.graphVoltage1.graphWidget)
         self.graphVoltage = QtWidgets.QWidget()
         self.graphVoltage.setFixedWidth(int((430/1980)*self.w))
@@ -490,13 +520,14 @@ class MainWindow(QMainWindow):
         self.graphVoltage.setStyleSheet("QLabel{color: #f5fcff; font: 10pt  'Oswald';background-color: rgb(3,0,13); }")
 #-------graph voltage ends------------------------------------------------------------------------------------------------------------
 #-------graph gps altitude starts-----------------------------------------------------------------------------------------------------
+        self.gps_altitude_widget1 = namewidget()
         self.graphGPS_Altitude1 = graph([
                 {
                         "color": (245,252,255),
                         "name": "GPS_Altitude"
                 }], True, 200, "", "GPS_Altitude")
         graphGPS_Altitude_Layout = QVBoxLayout()
-        graphGPS_Altitude_Layout.addWidget(namewidget().nameline("GPS Altitude",int(((7/1980)/50)*size*self.w),int(((25/880)/50)*size*self.h),int(((13/1980)/50)*size*self.w)))
+        graphGPS_Altitude_Layout.addWidget(self.gps_altitude_widget1.nameline("GPS Altitude",int(((7/1980)/50)*size*self.w),int(((25/880)/50)*size*self.h),int(((13/1980)/50)*size*self.w)))
         graphGPS_Altitude_Layout.addWidget(self.graphGPS_Altitude1.graphWidget)
         self.graphGPS_Altitude = QtWidgets.QWidget()
         self.graphGPS_Altitude.setFixedWidth(int((430/1980)*self.w))
@@ -505,6 +536,7 @@ class MainWindow(QMainWindow):
         self.graphGPS_Altitude.setStyleSheet("QLabel{color: #f5fcff; font: 10pt  'Oswald';background-color: rgb(3,0,13); }")
 #-------graph gps altitude ends--------------------------------------------------------------------------------------------------------
 #-------graph titl xy starts-----------------------------------------------------------------------------------------------------------
+        self.tiltxy_widget = namewidget()
         self.graphTilt_XY1 = graph([
                 {
                         "color": (245,252,255),
@@ -514,7 +546,7 @@ class MainWindow(QMainWindow):
                         "name": "Y-axis"
         }], True, 200, "", "Tilt_XY ")
         graphTilt_XY_Layout = QVBoxLayout()
-        graphTilt_XY_Layout.addWidget(namewidget().nameline("Tilt XY",int(((7/1980)/50)*size*self.w),int(((25/880)/50)*size*self.h),int(((13/1980)/50)*size*self.w)))
+        graphTilt_XY_Layout.addWidget(self.tiltxy_widget.nameline("Tilt XY",int(((7/1980)/50)*size*self.w),int(((25/880)/50)*size*self.h),int(((13/1980)/50)*size*self.w)))
         graphTilt_XY_Layout.addWidget(self.graphTilt_XY1.graphWidget)
         self.graphTilt_XY = QtWidgets.QWidget()
         self.graphTilt_XY.setFixedWidth(int((430/1980)*self.w))
@@ -543,7 +575,6 @@ class MainWindow(QMainWindow):
 #-------gps widget starts----------------------------------------------------------------------------------------------------------------
         self.map = mapWidget()
         self.lat, self.lon = 17.5449,78.5718
-        self.map.update(self.lat, self.lon)
         self.map.setFixedWidth(int((450/1980)*self.w))
         self.map.setFixedHeight(int((280/880)*self.h))
         self.map.setStyleSheet("color: rgb(20,20,20)")
@@ -642,7 +673,8 @@ class MainWindow(QMainWindow):
 #-------packet count and corrupted packet widget ends---------------------------------------------------------------------------------------------------------
 #-------full telemetry widget starts---------------------------------------------------------------------------------------------------------------------------
         telemet_layout = QGridLayout()
-        telemet_layout.addWidget(namewidget().nameline("Telemetry",int(((7/1980)/50)*size*self.w),int(((30/880)/50)*size*self.h),int(((16/1980)/50)*size*self.w)),1,1,1,4)
+        self.telemet2_widget = namewidget()
+        telemet_layout.addWidget(self.telemet2_widget.nameline("Telemetry",int(((7/1980)/50)*size*self.w),int(((30/880)/50)*size*self.h),int(((16/1980)/50)*size*self.w)),1,1,1,4)
         telemet_layout.addWidget(self.tele_pac_name_widget,2,0,1,4)
         telemet_layout.addWidget(self.tele_widget,3,1,5,1)
         telemet_layout.addWidget(self.cmd_widget,8,1,3,1)
@@ -654,19 +686,30 @@ class MainWindow(QMainWindow):
 #-------longitude, latitude , no. of gps widget starts---------------------------------------------------------------------------------------------------------------
         self.longitude = QLabel("Longitude: 00.0000°E")
         self.longitude.setAlignment(QtCore.Qt.AlignCenter)
+        self.gps_altitude = QLabel("GPS Altitude: 0.0")
+        self.gps_altitude.setAlignment(QtCore.Qt.AlignCenter)
         self.latitude = QLabel("Latitude: 00.0000°N")
         self.latitude.setAlignment(QtCore.Qt.AlignCenter)
         self.gps_location = QLabel("GPS Location")
         self.no_of_gps = QLabel("No. of GPS: 0")
         self.no_of_gps.setAlignment(QtCore.Qt.AlignCenter)
 
+        gps_altitude_layout = QHBoxLayout()
+        gps_altitude_layout.addWidget(self.gps_altitude)
+        self.gps_altitude_widget = QtWidgets.QWidget()
+        self.gps_altitude_widget.setFixedWidth(int((220/1980)*self.w))
+        self.gps_altitude_widget.setFixedHeight(int((50/880)*self.h))
+        self.gps_altitude_widget.setStyleSheet("QLabel{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" %int(((13/1980)/50)*size*self.w))
+        self.gps_altitude_widget.setLayout(gps_altitude_layout)
+
         no_of_gps_layout = QHBoxLayout()
         no_of_gps_layout.addWidget(self.no_of_gps)
         self.no_of_gps_widget = QtWidgets.QWidget()
-        self.no_of_gps_widget.setFixedWidth(int((450/1980)*self.w))
+        self.no_of_gps_widget.setFixedWidth(int((220/1980)*self.w))
         self.no_of_gps_widget.setFixedHeight(int((50/880)*self.h))
         self.no_of_gps_widget.setStyleSheet("QLabel{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" %int(((13/1980)/50)*size*self.w))
         self.no_of_gps_widget.setLayout(no_of_gps_layout)
+
 
         latitude_layout = QHBoxLayout()
         latitude_layout.addWidget(self.latitude)
@@ -684,6 +727,14 @@ class MainWindow(QMainWindow):
         self.longitude_widget.setStyleSheet("QLabel{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }"%int(((13/1980)/50)*size*self.w))
         self.longitude_widget.setLayout(longitude_layout)
 #-------longitude and latitude widget---------------------------------------------------------------------------------------------------
+        line2_layout = QGridLayout()
+        line2_layout.addWidget(self.gps_altitude_widget,0,1,1,1)
+        line2_layout.addWidget(self.no_of_gps_widget,0,2,1,1)
+        self.line2_widget = QtWidgets.QWidget()
+        self.line2_widget.setFixedWidth(int((500/1980)*self.w))
+        self.line2_widget.setFixedHeight(int((50/880)*self.h))
+        self.line2_widget.setLayout(line2_layout)
+#------no of gps and gps altitude widget:
         lines_layout = QGridLayout()
         lines_layout.addWidget(self.latitude_widget,0,1,1,1)
         lines_layout.addWidget(self.longitude_widget,0,2,1,1)
@@ -691,10 +742,12 @@ class MainWindow(QMainWindow):
         self.lines_widget.setFixedWidth(int((500/1980)*self.w))
         self.lines_widget.setFixedHeight(int((50/880)*self.h))
         self.lines_widget.setLayout(lines_layout)
+# ----- ends --------------------------------------------
 #------latitude and longitude widget ends--------------------------------------------------------------------------------------------------
         gps_label_layout = QGridLayout()
-        gps_label_layout.addWidget(namewidget().nameline("GPS Location",int(((7/1980)/50)*size*self.w),int(((30/880)/50)*size*self.h),int(((16/1980)/50)*size*self.w)),1,0,1,1)
-        gps_label_layout.addWidget(self.no_of_gps_widget,2,0,1,1)
+        self. gps_label_layout_widget = namewidget()
+        gps_label_layout.addWidget(self.gps_label_layout_widget.nameline("GPS Location",int(((7/1980)/50)*size*self.w),int(((30/880)/50)*size*self.h),int(((16/1980)/50)*size*self.w)),1,0,1,1)
+        gps_label_layout.addWidget(self.line2_widget,2,0,1,1)
         gps_label_layout.addWidget(self.lines_widget,3,0,1,1)
         gps_label_layout.addWidget(self.map,4,0,1,1)
         self.gps_label_widget = QtWidgets.QWidget()
@@ -740,11 +793,39 @@ class MainWindow(QMainWindow):
         self.corruptedPacketsValue = 0
         self.i = 0
 
-
     def receiver(self):
-           global packet
-           self.receive_thread.start()
-           self.update(packet)
+                global packet, remote
+                self.receive_thread.start() 
+                try:
+                        if (packet is not None ) and (packet!="") and ("error" not in packet):
+                                self.update(packet)
+                                self.connector.update_color("green")
+                                packet = ""
+                        if ("error" in packet):
+                               self.onGettingData(packet)
+                        if (remote.read_device_info() is not None):
+                                self.gps_altitude_widget1.update_color("red")
+                                self.tiltxy_widget.update_color("red")
+                                self.voltage_widget.update_color("red")
+                                self.pressure_widget.update_color("red")
+                                self.temperature_widget.update_color("red")
+                                self.altitude_widget.update_color("red")
+                                self.telemet2_widget.update_color("red")
+                                self.gps_label_layout_widget.update_color("red")
+                                #self.connector.update_color("red")
+                        if (remote.read_device_info() is None):
+                                #self.connector.update_color("red")
+                                pass
+
+                        else:
+                               
+                               
+                               #print("Packet not received")
+                               self.connector.update_color("red")
+                except :
+                       #self.onGettingData("Packet not received")
+                       self.connector.update_color("red")
+
            #self.receive_thread.data_received.connect(self.update)
            
            
@@ -757,6 +838,22 @@ class MainWindow(QMainWindow):
         text = text+"\n"
         self.sending(text)
 
+    def send_simulation(self,file_path):
+                global simp
+                file = open(f"{file_path}","r")
+                simp1 = file.readlines()
+                simp=[]
+                for line in simp1:
+                        if line[0] !="#":
+                                simp.append(line.strip('\n'))
+                while("" in simp):
+                        simp.remove("")
+
+                simp = [sub.replace('$', '1062') for sub in simp]
+                #print(simp)
+                #self.sending(simp)
+
+
 
     
     def telemetry_button(self):
@@ -768,7 +865,7 @@ class MainWindow(QMainWindow):
             check = "OFF"
         DATA_TO_SEND = "CMD,1062,CX," + str(check) + "\n"
         self.sending(DATA_TO_SEND)
-        print(DATA_TO_SEND,"HI")
+        #print(DATA_TO_SEND,"HI")
     
     def calibration_button(self):
         if self.button_name2.isChecked():
@@ -778,7 +875,7 @@ class MainWindow(QMainWindow):
   
         else:
             self.button_name2.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )
-        print(cal)
+        #print(cal)
     def set_time_utc_button(self):
         if self.button_name3.isChecked():
             self.button_name3.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
@@ -814,16 +911,21 @@ class MainWindow(QMainWindow):
                 self.button_name6.setStyleSheet("QPushButton{color: rgb(200,200,200); font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
         sim = "CMD,1062,SIM," + val + "\n"
         self.sending(sim)
-        print(sim)
+        #print(sim)
             
     def simulation_activate_button(self):
-        global sima
+        global sima,simp
         if check_sim == 1:
                 if self.button_name6.isChecked():
                         self.button_name6.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
                         self.button_name6.setText("Simulation-Deactivate")
                         val = "ACTIVATE"
+                        self.sending_timer_simp = QTimer()
+                        self.sending_timer_simp.timeout.connect(self.send_sim_data)
+                        self.sending_timer_simp.start(1000)
+                        
                 else:
+                        self.sending_timer_simp.stop()
                         self.button_name6.setText("Simulation-Activate")
                         self.button_name6.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(0,0,0); }" % int((16/1980)*width) )
                         val = "DISABLE"
@@ -838,14 +940,24 @@ class MainWindow(QMainWindow):
 
         sima = "CMD,1062,SIM," + val + "\n"
         self.sending(sima)
-        print(sima)
+        #print(sima)
+    def send_sim_data(self):
+                try:
+                        self.sending(simp[0])
+                        del simp[0]
+                        #self.sending(simp[0])
+                        
+        #starts to send data from simp
+                except:
+                        pass
+           
 
     @pyqtSlot()
     def sending(self, send):
 
         global DATA_TO_SEND
         DATA_TO_SEND = send
-        print(DATA_TO_SEND,"SEND")
+        #print(DATA_TO_SEND,"SEND")
 
 
         self.send_thread.start()
@@ -858,7 +970,8 @@ class MainWindow(QMainWindow):
                 self.my_packet.write(packet+"\n")
                 self.my_packet.close()
                 self.lis = list(packet.split(","))
-                print(self.lis)
+                print(packet)
+                packet = ""
                
 
 
@@ -873,7 +986,8 @@ class MainWindow(QMainWindow):
         try:
                 self.packetCountValue = int(self.lis[2])
         except:
-                self.packetCountValue = self.packetCountValue
+               pass
+                #self.packetCountValue = self.packetCountValue
         try:
                 self.modeValue = self.lis[3].strip()
         except:
@@ -885,7 +999,7 @@ class MainWindow(QMainWindow):
         try:
                 self.altitudeValue = float(self.lis[5])
         except:
-                self.altitudeValue = 1.0
+                self.altitudeValue = 0.0
         try:
                 self.hsDeployedValue = self.lis[6]
         except:
@@ -901,15 +1015,15 @@ class MainWindow(QMainWindow):
         try:
                 self.temperatureValue = float(self.lis[9])
         except:
-                self.temperatureValue = 1.0
+                self.temperatureValue = 0.0
         try:
                 self.voltageValue = float(self.lis[10])
         except:
-                self.voltageValue = 1.0
+                self.voltageValue = 0.0
         try:
                 self.pressureValue = float(self.lis[11])
         except:
-                self.pressureValue = 1.0
+                self.pressureValue = 0.0
         try:
                 self.gpsTimeValue = self.lis[12]
         except:
@@ -917,15 +1031,15 @@ class MainWindow(QMainWindow):
         try:
                 self.gpsAltitudeValue = float(self.lis[13])
         except:
-                self.gpsAltitudeValue = 1.0
+                self.gpsAltitudeValue = 0.0
         try:
                 self.gpsLatitudeValue = float(self.lis[14])
         except:
-                self.gpsLatitudeValue = 1.0
+                self.gpsLatitudeValue = 0.0
         try:
                 self.gpsLongitudeValue = float(self.lis[15])
         except:
-                self.gpsLongitudeValue = 1.0
+                self.gpsLongitudeValue = 0.0
         try:
                 self.noOfGpsValue = int(self.lis[16])
         except:
@@ -933,25 +1047,138 @@ class MainWindow(QMainWindow):
         try:
                 self.tiltXValue = float(self.lis[17])
         except:
-                self.tiltXValue = 1.0
+                self.tiltXValue = 0.0
         try:
                 self.tiltYValue = float(self.lis[18])
         except:
-                self.tiltYValue = 1.0
+                self.tiltYValue = 0.0
         try:
                 self.cmdEchoValue = self.lis[19]
         except:
                 self.cmdEchoValue = ""
         
-        self.q = ""
-        for x in range(18):
-                self.q+="*"
-                if self.q in self.lis:
-                        self.corruptedPacketsValue +=1
-                else:
-                        self.corruptedPacketsValue+=0
+        try:
         
-        self.i += 1
+                self.q = ""
+                for x in range(18):
+                        self.q+="*"
+                        if self.q in self.lis:
+                                self.corruptedPacketsValue +=1
+                                r=0
+                                break
+                        else:
+                                self.corruptedPacketsValue+=0
+                                r=1
+                
+                self.i += 1
+        except:
+               pass
+        try: 
+                if ("*" not in  self.lis[17]) or ("*" not in  self.lis[18]) :
+                                self.tiltxy_widget.update_color("rgb(59, 146, 184)")
+                else:
+                        self.tiltxy_widget.update_color("red")
+        except:
+                pass
+        try:
+
+                if ("*" not in  self.lis[13])  :
+                                self.gps_altitude_widget1.update_color("rgb(59, 146, 184)")
+                else:
+                                self.gps_altitude_widget1.update_color("red")
+        except:
+                pass
+
+        try:
+                if ("*" not in  self.lis[10]) :
+
+                        self.voltage_widget.update_color("rgb(59, 146, 184)")
+                else:
+                        self.voltage_widget.update_color("red")
+        except:
+                pass
+
+        try:
+
+                if ("*" not in  self.lis[11])  :
+                        self.pressure_widget.update_color("rgb(59, 146, 184)")
+                else:
+                        self.pressure_widget.update_color("red")
+        except:
+                pass
+
+        try:
+
+                if ("*" not in  self.lis[9]) :
+                        self.temperature_widget.update_color("rgb(59, 146, 184)")
+                else:
+                        self.temperature_widget.update_color("red")
+                
+        except:
+                pass
+
+        try:
+                
+                if ("*" not in  self.lis[5]) :
+                        self.altitude_widget.update_color("rgb(59, 146, 184)")
+                else:
+                        self.altitude_widget.update_color("red")
+        except:
+                pass
+
+        try:
+
+                if  r==1:
+                        self.telemet2_widget.update_color("rgb(59, 146, 184)")
+                else :
+                        self.telemet2_widget.update_color("red")
+        except:
+                pass
+
+        try:
+                if ("*" not in  self.lis[12]) and ("*" not in  self.lis[14]) and ("*" not in  self.lis[15]) and ("*" not in  self.lis[16]) :
+                        self.gps_label_layout_widget.update_color("rgb(59, 146, 184)")
+                else:
+                        self.gps_label_layout_widget.update_color("red")
+
+        except:
+                pass
+
+        try:
+               self.tiltxy_widget.update_name("Tilt XY : " + "X : " + str(self.tiltXValue) + ", Y : " + str(self.tiltYValue))
+
+        except:
+               pass
+
+        try:
+               self.gps_altitude_widget1.update_name("GPS Altitude : " +  str(self.gpsAltitudeValue))
+        except:
+               pass
+
+        try:
+               self.voltage_widget.update_name("Voltage : " + str(self.voltageValue))
+        except:
+               pass
+
+        try:
+               self.altitude_widget.update_name("Altitude : " +  str(self.altitudeValue))
+        except:
+               pass
+
+        try:
+               self.temperature_widget.update_name("Temperature : " + str(self.temperatureValue))
+        except:
+               pass
+
+        try:
+               self.pressure_widget.update_name("Pressure : " + str(self.pressureValue))
+        except:
+               pass
+
+
+
+
+
         try:
                 self.graphPressure1.update(self.i,[ self.pressureValue])
         except:
@@ -985,7 +1212,10 @@ class MainWindow(QMainWindow):
                 self.lon = self.gpsLongitudeValue
         except:
                 self.lon = 0
-        self.map.update(self.lat, self.lon)
+        try:
+                self.map.update(self.lat, self.lon)
+        except:
+               pass
         #printing the simp from text or csv file
         """
         if  (self.i<= len(simp) - 1):
@@ -1000,6 +1230,10 @@ class MainWindow(QMainWindow):
                 pass
         try:
                 self.no_of_gps.setText("No. of GPS: " + str(self.noOfGpsValue))
+        except:
+                pass
+        try:
+                self.gps_altitude.setText("GPS Altitude: " + str(self.gpsAltitudeValue))
         except:
                 pass
         try:
@@ -1018,24 +1252,28 @@ class MainWindow(QMainWindow):
 
         
 
-
+        if (self.stateValue == "IDLE"):
+                is_ascent, is_descent, is_heat_shield_deployed, is_landed, is_mast_raised, is_parachute_deployed,is_probe_deployed, is_rocket_separated = 0,0,0,0,0,0,0,0
         if (self.stateValue == "ASCENT"):
                 is_ascent =  1
         
         if (self.stateValue == "DESCENT"):
                 is_rocket_separated = 1
                 is_ascent =  1
+                is_descent = 1
         
-        if (self.stateValue == "PAYLOAD_DEPLOYED"):
+        if (self.stateValue == "PAYLOAD_SEPARATED"):
                 is_probe_deployed = 1
                 is_rocket_separated = 1
                 is_ascent =  1
+                is_descent = 1
         
         if (self.hsDeployedValue == "P"):
                 is_heat_shield_deployed = 1
                 is_probe_deployed = 1
                 is_rocket_separated = 1
                 is_ascent =  1
+                is_descent = 1
         
         if (self.pcDeployedValue == "C"):
                 is_parachute_deployed = 1
@@ -1043,14 +1281,8 @@ class MainWindow(QMainWindow):
                 is_probe_deployed = 1
                 is_rocket_separated = 1
                 is_ascent =  1
-        
-        if (self.stateValue == "DESCENT"):
                 is_descent = 1
-                is_parachute_deployed = 1
-                is_heat_shield_deployed = 1
-                is_probe_deployed = 1
-                is_rocket_separated = 1
-                is_ascent =  1
+        
         
         if (self.stateValue == "LANDED"):
                 is_landed = 1
@@ -1153,9 +1385,9 @@ class MainWindow(QMainWindow):
         self.MENU2_mission_time.setText("Mission Time:"+str(tim))
 
     
-    def onGettingData(self):
+    def onGettingData(self, texts):
         #input from cansat
-        text = "hi"
+        text = texts
         # do some thing withit
         self.log_output(text+"\n")
 
