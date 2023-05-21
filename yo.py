@@ -24,7 +24,7 @@ check_sim = 0
 curstate = "Idle"
 is_ascent, is_descent, is_heat_shield_deployed, is_landed, is_mast_raised, is_parachute_deployed,is_probe_deployed, is_rocket_separated = 0,0,0,0,0,0,0,0
 corruptedPacketsValue =0 
-global packet, device
+global packet
 simp = ""
 device = XBeeDevice(PORT, BAUD_RATE)
 device.open()
@@ -38,7 +38,7 @@ class SendDataThread(QThread):
 
 
         def run(self):
-                global DATA_TO_SEND, device, remote
+                global DATA_TO_SEND, device
                 try:
                         data = DATA_TO_SEND
                         #print(data,1)
@@ -686,21 +686,21 @@ class MainWindow(QMainWindow):
 #-------longitude, latitude , no. of gps widget starts---------------------------------------------------------------------------------------------------------------
         self.longitude = QLabel("Longitude: 00.0000°E")
         self.longitude.setAlignment(QtCore.Qt.AlignCenter)
-        self.gps_altitude = QLabel("GPS Altitude: 0.0")
-        self.gps_altitude.setAlignment(QtCore.Qt.AlignCenter)
+        self.gps_time = QLabel("GPS Time: 0.0")
+        self.gps_time.setAlignment(QtCore.Qt.AlignCenter)
         self.latitude = QLabel("Latitude: 00.0000°N")
         self.latitude.setAlignment(QtCore.Qt.AlignCenter)
         self.gps_location = QLabel("GPS Location")
         self.no_of_gps = QLabel("No. of GPS: 0")
         self.no_of_gps.setAlignment(QtCore.Qt.AlignCenter)
 
-        gps_altitude_layout = QHBoxLayout()
-        gps_altitude_layout.addWidget(self.gps_altitude)
-        self.gps_altitude_widget = QtWidgets.QWidget()
-        self.gps_altitude_widget.setFixedWidth(int((220/1980)*self.w))
-        self.gps_altitude_widget.setFixedHeight(int((50/880)*self.h))
-        self.gps_altitude_widget.setStyleSheet("QLabel{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" %int(((13/1980)/50)*size*self.w))
-        self.gps_altitude_widget.setLayout(gps_altitude_layout)
+        gps_time_layout = QHBoxLayout()
+        gps_time_layout.addWidget(self.gps_time)
+        self.gps_time_widget = QtWidgets.QWidget()
+        self.gps_time_widget.setFixedWidth(int((220/1980)*self.w))
+        self.gps_time_widget.setFixedHeight(int((50/880)*self.h))
+        self.gps_time_widget.setStyleSheet("QLabel{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" %int(((13/1980)/50)*size*self.w))
+        self.gps_time_widget.setLayout(gps_time_layout)
 
         no_of_gps_layout = QHBoxLayout()
         no_of_gps_layout.addWidget(self.no_of_gps)
@@ -728,7 +728,7 @@ class MainWindow(QMainWindow):
         self.longitude_widget.setLayout(longitude_layout)
 #-------longitude and latitude widget---------------------------------------------------------------------------------------------------
         line2_layout = QGridLayout()
-        line2_layout.addWidget(self.gps_altitude_widget,0,1,1,1)
+        line2_layout.addWidget(self.gps_time_widget,0,1,1,1)
         line2_layout.addWidget(self.no_of_gps_widget,0,2,1,1)
         self.line2_widget = QtWidgets.QWidget()
         self.line2_widget.setFixedWidth(int((500/1980)*self.w))
@@ -794,16 +794,17 @@ class MainWindow(QMainWindow):
         self.i = 0
 
     def receiver(self):
-                global packet, remote
+                global packet
                 self.receive_thread.start() 
                 try:
                         if (packet is not None ) and (packet!="") and ("error" not in packet):
-                                self.update(packet)
                                 self.connector.update_color("green")
+                                self.update(packet)
+                                #self.connector.update_color("green")
                                 packet = ""
                         if ("error" in packet):
                                self.onGettingData(packet)
-                        if (remote.read_device_info() is not None):
+                        if (SendDataThread.remote.read_device_info() is not None):
                                 self.gps_altitude_widget1.update_color("red")
                                 self.tiltxy_widget.update_color("red")
                                 self.voltage_widget.update_color("red")
@@ -812,10 +813,7 @@ class MainWindow(QMainWindow):
                                 self.altitude_widget.update_color("red")
                                 self.telemet2_widget.update_color("red")
                                 self.gps_label_layout_widget.update_color("red")
-                                #self.connector.update_color("red")
-                        if (remote.read_device_info() is None):
-                                #self.connector.update_color("red")
-                                pass
+                                #self.connector.update_color("red")"""
 
                         else:
                                
@@ -824,7 +822,7 @@ class MainWindow(QMainWindow):
                                self.connector.update_color("red")
                 except :
                        #self.onGettingData("Packet not received")
-                       self.connector.update_color("red")
+                       pass
 
            #self.receive_thread.data_received.connect(self.update)
            
@@ -859,10 +857,10 @@ class MainWindow(QMainWindow):
     def telemetry_button(self):
         if self.button_name1.isChecked():
             self.button_name1.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
-            check = "ON"
+            check = "OFF"
         else:
             self.button_name1.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )
-            check = "OFF"
+            check = "ON"
         DATA_TO_SEND = "CMD,1062,CX," + str(check) + "\n"
         self.sending(DATA_TO_SEND)
         #print(DATA_TO_SEND,"HI")
@@ -875,7 +873,7 @@ class MainWindow(QMainWindow):
   
         else:
             self.button_name2.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(30,30,30); }" % int((16/1980)*width) )
-        #print(cal)
+        print(cal)
     def set_time_utc_button(self):
         if self.button_name3.isChecked():
             self.button_name3.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
@@ -896,7 +894,7 @@ class MainWindow(QMainWindow):
            
     def simulation_enabled_button(self):
         global check_sim, sim
-        if self.button_name5.isChecked():
+        if self.button_name5.isChecked() :
                 self.button_name5.setText("Simulation-Disable")
                 self.button_name5.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
                 check_sim = 1
@@ -909,6 +907,7 @@ class MainWindow(QMainWindow):
                 check_sim = 0
                 self.button_name6.setText("Simulation-Activate")
                 self.button_name6.setStyleSheet("QPushButton{color: rgb(200,200,200); font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
+
         sim = "CMD,1062,SIM," + val + "\n"
         self.sending(sim)
         #print(sim)
@@ -916,7 +915,7 @@ class MainWindow(QMainWindow):
     def simulation_activate_button(self):
         global sima,simp
         if check_sim == 1:
-                if self.button_name6.isChecked():
+                if self.button_name6.isChecked() :
                         self.button_name6.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
                         self.button_name6.setText("Simulation-Deactivate")
                         val = "ACTIVATE"
@@ -924,23 +923,28 @@ class MainWindow(QMainWindow):
                         self.sending_timer_simp.timeout.connect(self.send_sim_data)
                         self.sending_timer_simp.start(1000)
                         
+
                 else:
                         self.sending_timer_simp.stop()
                         self.button_name6.setText("Simulation-Activate")
                         self.button_name6.setStyleSheet("QPushButton{color: #f5fcff; font: %spt  'Oswald';background-color: rgb(0,0,0); }" % int((16/1980)*width) )
                         val = "DISABLE"
+
         if check_sim == 0:
-                if self.button_name6.isChecked():
+                if self.button_name6.isChecked() :
                         self.button_name6.setStyleSheet("QPushButton{color: rgb(200,200,200); font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
                         self.button_name6.setText("Simulation-Deactivate")
+                
                 else:
                         self.button_name6.setText("Simulation-Activate")
                         self.button_name6.setStyleSheet("QPushButton{color: rgb(200,200,200); font: %spt  'Oswald';background-color: rgb(10,10,10); }" % int((16/1980)*width) )
 
 
+
         sima = "CMD,1062,SIM," + val + "\n"
         self.sending(sima)
         #print(sima)
+
     def send_sim_data(self):
                 try:
                         self.sending(simp[0])
@@ -958,8 +962,6 @@ class MainWindow(QMainWindow):
         global DATA_TO_SEND
         DATA_TO_SEND = send
         #print(DATA_TO_SEND,"SEND")
-
-
         self.send_thread.start()
    
     #@pyqtSlot(str)
@@ -1056,6 +1058,14 @@ class MainWindow(QMainWindow):
                 self.cmdEchoValue = self.lis[19]
         except:
                 self.cmdEchoValue = ""
+        
+       
+        try:
+                if self.modeValue == "S":
+                        pass
+        
+        except:
+                pass
         
         try:
         
@@ -1233,7 +1243,7 @@ class MainWindow(QMainWindow):
         except:
                 pass
         try:
-                self.gps_altitude.setText("GPS Altitude: " + str(self.gpsAltitudeValue))
+                self.gps_time.setText("GPS Time: " + str(self.gpsTimeValue))
         except:
                 pass
         try:
