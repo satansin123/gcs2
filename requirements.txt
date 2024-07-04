@@ -3,3 +3,4 @@ PyQt5==5.15.9
 pyqtgraph==0.12.0
 QSwitchControl==1.0.4
 PyQtWebEngine
+digi-xbee
