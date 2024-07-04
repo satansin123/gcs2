@@ -57,7 +57,7 @@ else:
         color_background_btn = "rgb(0,0,0)"
 
 try:
-        PORT = "COM10"  # Replace with your actual port
+        PORT = "COM15"  # Replace with your actual port
         BAUD_RATE = 9600  # Replace with your actual baud rate
         REMOTE_NODE_ID = "REMOTE_NODE_ID"  # Replace with the remote node ID
         DATA_TO_SEND = "hi"
@@ -90,7 +90,7 @@ class SendDataThread(QThread):
                         data = DATA_TO_SEND
                         #print(data,1)
                         
-                        remote  = RemoteXBeeDevice(device,XBee64BitAddress.from_hex_string("0013A20040AD19CA"))
+                        remote  = RemoteXBeeDevice(device,XBee64BitAddress.from_hex_string("0013A20041A38CD0"))
                         device.send_data(remote,data)
                         #print(data,2)
                 except:
@@ -670,7 +670,7 @@ class MainWindow(QMainWindow):
 #-------graph gps altitude ends--------------------------------------------------------------------------------------------------------
 #-------graph extra starts-----------------------------------------------------------------------------------------------------------
         self.cmd_echo = QLabel("CMD ECHO : ")
-        self.battery_val = QLabel("Battery : ")
+        self.battery_val = QLabel("Battery % : ")
         self.cmd_echo.setAlignment(QtCore.Qt.AlignLeft)
         self.battery_val.setAlignment(QtCore.Qt.AlignLeft)
         cmd_echo_layout = QVBoxLayout()
@@ -964,13 +964,13 @@ class MainWindow(QMainWindow):
         #self.setFixedSize(self.all_widget.sizeHint())
         
         self.setCentralWidget(self.all_widget)
-        """
+        
         self.send_thread = SendDataThread()
         self.receive_thread = ReceiveDataThread()
         self.receiving_timer = QTimer()
         self.receiving_timer.timeout.connect(self.receiver)
         self.receiving_timer.start(990)
-        """
+        
         self.corruptedPacketsValue = 0
         self.i = 0
         
@@ -1598,7 +1598,7 @@ class MainWindow(QMainWindow):
         except:
                 pass
         try:
-                self.battery_val.setText("Battery : "+str(self.batteryValue))
+                self.battery_val.setText("Battery % : "+str(self.batteryValue))
         except:
                 pass
         is_launch_wait, is_ascent, is_descent, is_heat_shield_deployed, is_landed,   is_rocket_separated = 0,0,0,0,0,0
@@ -1727,7 +1727,7 @@ class MainWindow(QMainWindow):
         tim = "{:02d}:{:02d}:{:02d}".format(h,m,s)
         self.time+=1
                 
-        self.MENU2_mission_time.setText("Mission Time:"+str(tim))
+        self.MENU2_mission_time.setText("GMT TIME:"+str(tim))
 
     
    
