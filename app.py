@@ -18,7 +18,7 @@ from digi.xbee.devices import *
 import random
 
 #if a is 0 then dark mode, if a is 1 then light mode
-a = 1
+a = 0
 
 if a == 0:
 #dark mode
